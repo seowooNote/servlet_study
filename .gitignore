@@ -4,6 +4,8 @@ target/
 !**/src/test/**/target/
 .metadata/
 Servers/
+insert_and_select/src/main/java/com/study/insert_and_select/config/DBConfig.java
+product/src/main/java/com/study/product/config/DBConfig.java
 
 ### IntelliJ IDEA ###
 .idea/

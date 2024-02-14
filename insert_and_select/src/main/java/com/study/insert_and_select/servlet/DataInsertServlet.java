@@ -6,6 +6,7 @@ import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
@@ -18,6 +19,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.study.insert_and_select.dao.StudentDao;
 import com.study.insert_and_select.entity.Student;
 
 
@@ -57,10 +59,10 @@ public class DataInsertServlet extends HttpServlet {
 		Gson gson = new Gson();
 		
 		// 1) JSON -> Map
-		Map<String, Object> map = gson.fromJson(builder.toString(), Map.class); // gson.fromJson(builder.toString(), Map.class) 이 Map<String, Object> 형태로 알아서 자동 저장됨
-		System.out.println(map);
-		System.out.println(map.get("name"));
-		System.out.println(map.get("age"));
+		// Map<String, Object> map = gson.fromJson(builder.toString(), Map.class); // gson.fromJson(builder.toString(), Map.class) 이 Map<String, Object> 형태로 알아서 자동 저장됨
+		// System.out.println(map);
+		// System.out.println(map.get("name"));
+		// System.out.println(map.get("age"));
 		
 		// 2) JSON -> Object(Entity 객체) / 2번 방법을 추천
 		Student student = gson.fromJson(builder.toString(), Student.class);
@@ -68,41 +70,20 @@ public class DataInsertServlet extends HttpServlet {
 		System.out.println(student.getName());
 		System.out.println(student.getAge());
 		
-		// DBConnectionMgr.java 파일 없이 데이터베이스 연결하는 방법
-		Connection con = null; // 데이터베이스 연결
-		String sql = null; // SQL 쿼리문 작성
-		PreparedStatement pstmt = null; // 작성한 SQL 쿼리문 입력(DML)
-		int successCount = 0; // SQL insert, update, delete 에 따른 실행 결과(성공 횟수)
+		StudentDao studentDao = StudentDao.getInstance();
 		
-		try {	
-			// Driver.class 연결
-			Class.forName("com.mysql.cj.jdbc.Driver"); // 데이터베이스 커넥터 드라이브 클래스 이름 forName() 의 매개변수 안에 문자열 (Libraries -> Maven Dependncies -> mysql-connector-j-8.0.33.jar -> com.mysql -> cj -> jdbc -> Driver.class 파일 우클릭 -> Copy Qualified Name -> 복사 붙여넣기 -> .class 지우기
-			
-			String url = "jdbc:mysql://mysql-db.cin5nw0tb1i7.ap-northeast-2.rds.amazonaws.com/db_study";
-			String username = "aws";
-			String password = "1q2w3e4r!!";
-			
-			con = DriverManager.getConnection(url, username, password);
-			sql = "insert into servlet_student_tb(servlet_student_name, servlet_student_age) values(?, ?)";
-			pstmt = con.prepareStatement(sql);
-			pstmt.setString(1, student.getName());
-			pstmt.setInt(2, student.getAge());
-			successCount = pstmt.executeUpdate();
-		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
-			try {
-				// try 문에서 error 가 발생하면 con 과 pstmt는 null 이기 때문에 null.close()는 실행불가 이기 때문에 if 문으로 처리해야 됨
-				if(pstmt != null) {
-					pstmt.close();
-				}
-				if(con != null) {
-					con.close();
-				}
-			} catch (SQLException e) {
-				e.printStackTrace();
-			}
+		Student findStudent = studentDao.findStudentbyName(student.getName());
+		
+		if(findStudent != null) {
+			Map<String, Object> errorMap = new HashMap<>();
+			errorMap.put("errorMessage", "이미 등록된 이름입니다.");
+			response.setStatus(400);
+			response.setContentType("application/json");
+			response.getWriter().println(gson.toJson(errorMap));
+			return;
 		}
+		
+		int successCount = studentDao.saveStudent(student);
 		
 		Map<String, Object> responseMap = new HashMap<>();
 		responseMap.put("status", 201);
@@ -110,6 +91,7 @@ public class DataInsertServlet extends HttpServlet {
 		responseMap.put("successCount", successCount);
 		
 		// 응답을 JSON으로 인지하게 해야됨 -> 그래야 프론트에서 JSON을 인지
+		response.setStatus(201);
 		response.setContentType("application/json");
 		
 		PrintWriter writer = response.getWriter();
